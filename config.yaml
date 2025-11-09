@@ -1,0 +1,149 @@
+# Gomu News Monitor Configuration File
+# ===========================================
+
+site:
+  url: "https://gomuhouchi.com/"
+  keywords:
+    - "バンドー化学"
+    - "三ツ星ベルト"
+
+  # Priority keywords for immediate notification
+  urgent_keywords:
+    - "バンドー化学 リコール"
+    - "三ツ星ベルト 事故"
+
+  # Login credentials (override with environment variables)
+  login_url: "https://gomuhouchi.com/membership-login/"
+  login_form_selectors:
+    # gomuhouchi.com uses SWPM (Simple WordPress Membership) plugin
+    email_field: "input[name='swpm_user_name']"
+    password_field: "input[name='swpm_password']"
+    submit_button: "input[name='swpm-login']"
+
+# Authentication settings
+auth:
+  enabled: false  # Set to false to skip login and scrape public articles only
+  max_retries: 3
+  continue_on_failure: true  # Continue scraping even if login fails
+
+monitoring:
+  # Check interval in minutes
+  check_interval_minutes: 60
+
+  # Time-based differential checking (business hours vs night)
+  differential_scheduling:
+    enabled: true
+    business_hours:
+      start: "09:00"
+      end: "18:00"
+      interval_minutes: 30
+    off_hours:
+      interval_minutes: 120
+
+  # Weekend scheduling
+  weekend_enabled: true
+  weekend_interval_minutes: 120
+
+  # Request settings
+  request_timeout_seconds: 60  # GitHub Actions는 느릴 수 있으므로 60초로 증가
+  max_retries: 3
+  retry_delay_seconds: 5
+
+email:
+  # SMTP Configuration
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  use_tls: true
+
+  # Email settings
+  batch_notifications: true
+  max_articles_per_email: 10
+
+  # Email template
+  subject_prefix: "[고무뉴스]"
+  include_full_content: false
+
+  # Error notifications
+  send_error_notifications: true
+  error_notification_threshold: 3  # Send alert after 3 consecutive failures
+
+scraping:
+  # Browser settings
+  headless: true
+  browser: "chrome"  # Options: chrome, firefox
+
+  # User agent rotation
+  user_agent_rotation: true
+  custom_user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+
+  # Rate limiting (서버 부하 방지)
+  delay_between_requests_min: 2  # GitHub Actions는 IP 제한 방지를 위해 2초로 증가
+  delay_between_requests_max: 4
+
+  # Pagination
+  max_pages_to_scrape: 5
+  articles_per_page: 20
+
+  # Session management
+  session_cookie_lifetime_hours: 24
+  relogin_on_session_expire: true
+
+database:
+  path: "data/articles.db"
+  backup_enabled: true
+  backup_interval_days: 7
+  backup_directory: "data/backups"
+
+  # Cleanup old records
+  cleanup_enabled: true
+  keep_records_days: 90
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "logs/monitor.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+  # Console output
+  console_output: true
+  console_level: "INFO"
+
+  # Colored output
+  colored_output: true
+
+# Advanced features
+features:
+  # Dashboard
+  dashboard_enabled: false
+  dashboard_port: 8501
+
+  # Telegram notifications
+  telegram_enabled: false
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+
+  # Slack notifications
+  slack_enabled: false
+  slack_webhook_url: ""
+
+  # Weekly report
+  weekly_report_enabled: true
+  weekly_report_day: "monday"  # Day of week for report
+  weekly_report_time: "09:00"
+
+  # Performance monitoring
+  collect_metrics: true
+  metrics_file: "logs/metrics.json"
+
+# Security
+security:
+  encrypt_passwords: false
+  rate_limit_requests: true
+  max_requests_per_minute: 30
+
+  # Proxy support
+  use_proxy: false
+  proxy_url: ""
+  proxy_rotation: false

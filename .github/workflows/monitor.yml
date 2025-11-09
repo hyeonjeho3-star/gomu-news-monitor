@@ -1,0 +1,229 @@
+# =============================================================================
+# Gomu News Monitor - GitHub Actions Workflow
+# =============================================================================
+#
+# 이 워크플로우는 GitHub의 무료 클라우드 환경에서 자동으로 실행됩니다.
+# - 비용: $0 (public repository)
+# - PC 끄기: 가능 (클라우드에서 실행)
+# - 스케줄: 3시간마다 자동 체크
+#
+# =============================================================================
+
+name: Gomu News Monitor
+
+on:
+  # 스케줄 실행: 3시간마다 (UTC 기준)
+  # UTC 시간이므로 한국시간(KST)과 9시간 차이가 있습니다
+  # 예: UTC 0시 = 한국 오전 9시
+  schedule:
+    - cron: '0 */3 * * *'  # 매 3시간마다 (0시, 3시, 6시, 9시, 12시, 15시, 18시, 21시)
+
+  # 수동 실행: Actions 탭에서 "Run workflow" 버튼으로 즉시 실행 가능
+  workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: 'Enable debug logging'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+# 환경 변수 (모든 jobs에서 사용 가능)
+env:
+  PYTHON_VERSION: '3.11'
+  TIMEZONE: 'Asia/Seoul'
+
+jobs:
+  monitor:
+    name: Monitor Gomu News
+    runs-on: ubuntu-latest
+
+    # 타임아웃 설정 (10분 초과 시 자동 중단)
+    timeout-minutes: 10
+
+    steps:
+      # ========================================
+      # Step 1: 저장소 코드 체크아웃
+      # ========================================
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1  # 최신 커밋만 가져오기 (속도 향상)
+
+      # ========================================
+      # Step 2: Python 환경 설정
+      # ========================================
+      - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'  # pip 캐시 활성화 (2회차부터 빠른 설치)
+
+      # ========================================
+      # Step 3: Chrome 브라우저 설치
+      # ========================================
+      - name: 🌐 Install Google Chrome
+        run: |
+          echo "📦 Installing Chrome..."
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update -qq
+          sudo apt-get install -y google-chrome-stable
+
+          # Chrome 버전 확인
+          chrome_version=$(google-chrome --version)
+          echo "✅ Installed: $chrome_version"
+
+      # ========================================
+      # Step 4: Python 패키지 설치
+      # ========================================
+      - name: 📦 Install Python dependencies
+        run: |
+          echo "📦 Installing dependencies..."
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "✅ Dependencies installed"
+
+      # ========================================
+      # Step 5: 환경 변수 파일 생성
+      # ========================================
+      - name: 🔐 Create .env file from secrets
+        run: |
+          echo "🔐 Creating .env file..."
+          cat << EOF > .env
+          # Site Login
+          LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
+
+          # Email Notification
+          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO=${{ secrets.EMAIL_TO }}
+
+          # SMTP Configuration
+          SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+
+          # GitHub Actions Environment
+          GITHUB_ACTIONS=true
+          EOF
+
+          echo "✅ .env file created"
+
+          # 빈 값 검증 (보안)
+          if grep -q "=$" .env; then
+            echo "❌ Error: Some secrets are empty!"
+            echo "Please check GitHub Secrets settings"
+            exit 1
+          fi
+
+          echo "✅ All secrets are set"
+
+      # ========================================
+      # Step 6: 디렉토리 생성
+      # ========================================
+      - name: 📁 Create required directories
+        run: |
+          mkdir -p data logs
+          echo "✅ Directories created"
+
+      # ========================================
+      # Step 7: 모니터링 실행
+      # ========================================
+      - name: 🔍 Run monitoring
+        id: monitor
+        run: |
+          echo "🚀 Starting Gomu News Monitor..."
+          echo "=============================================="
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Run Number: ${{ github.run_number }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Triggered by: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "=============================================="
+
+          # Debug 모드 확인
+          if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
+            echo "🐛 Debug mode enabled"
+            export DEBUG=true
+          fi
+
+          # 모니터링 실행
+          python main.py --mode test
+
+          echo "✅ Monitoring completed"
+        timeout-minutes: 8
+
+      # ========================================
+      # Step 8: 로그 업로드 (실패 시에만)
+      # ========================================
+      - name: 📋 Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # ========================================
+      # Step 9: 통계 출력
+      # ========================================
+      - name: 📊 Show statistics
+        if: always()
+        run: |
+          echo "=============================================="
+          echo "📊 Monitoring Statistics"
+          echo "=============================================="
+          python main.py --stats --days 1 || echo "No statistics available yet"
+
+      # ========================================
+      # Step 10: 실행 결과 요약
+      # ========================================
+      - name: 📝 Job Summary
+        if: always()
+        run: |
+          echo "## 🔔 Gomu News Monitor" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**실행 시간**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**한국 시간**: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **상태**: 성공" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **상태**: 실패" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Tip**: 로그를 확인하려면 위의 각 step을 클릭하세요." >> $GITHUB_STEP_SUMMARY
+
+# =============================================================================
+# Workflow 커스터마이징 가이드
+# =============================================================================
+#
+# 1. 실행 주기 변경:
+#    schedule:
+#      - cron: '0 */3 * * *'   # 3시간마다 (현재 설정)
+#      - cron: '0 * * * *'     # 1시간마다
+#      - cron: '0 */6 * * *'   # 6시간마다
+#      - cron: '0 9,21 * * *'  # 매일 9시, 21시 (UTC)
+#
+# 2. 타임아웃 변경:
+#    timeout-minutes: 10   # 전체 job 타임아웃
+#    timeout-minutes: 8    # monitor step 타임아웃
+#
+# 3. 로그 보관 기간 변경:
+#    retention-days: 7     # 7일 → 원하는 일수로 변경
+#
+# 4. Cron 시간대 변환:
+#    한국(KST) = UTC + 9시간
+#    UTC 0시 = 한국 오전 9시
+#    UTC 12시 = 한국 오후 9시
+#
+#    Cron 도구: https://crontab.guru/
+#
+# =============================================================================

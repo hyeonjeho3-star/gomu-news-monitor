@@ -1,0 +1,151 @@
+# ===========================================
+# Environment & Secrets (절대 업로드 금지!)
+# ===========================================
+.env
+.env.*
+*.env
+!.env.example
+
+# ===========================================
+# Data & Logs
+# ===========================================
+data/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Session data
+session.pkl
+
+# Backups
+backups/
+*.bak
+
+# ===========================================
+# Python
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# ===========================================
+# ChromeDriver & WebDriver
+# ===========================================
+.wdm/
+chromedriver
+chromedriver.exe
+geckodriver
+geckodriver.exe
+
+# ===========================================
+# IDE
+# ===========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===========================================
+# OS
+# ===========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# Testing
+# ===========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+*.cover
+.cache
+nosetests.xml
+coverage.xml
+*.coveragerc
+
+# ===========================================
+# Jupyter
+# ===========================================
+.ipynb_checkpoints
+*.ipynb
+
+# ===========================================
+# mypy
+# ===========================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===========================================
+# Debugging Files (Phase 2에서 생성됨)
+# ===========================================
+login_page_debug.html
+login_debug_info.json
+login_page_screenshot.png
+debug_*.html
+debug_*.json
+debug_*.png
+
+# ===========================================
+# GitHub Actions Artifacts
+# ===========================================
+# Actions에서 생성된 로그는 자동 삭제되므로 로컬에서만 제외
+artifacts/
+
+# ===========================================
+# Temporary Files
+# ===========================================
+*.tmp
+*.temp
+*.cache
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ===========================================
+# Project Specific
+# ===========================================
+# 테스트용 데이터베이스
+test_*.db
+
+# 로컬 설정 (개인용)
+config.local.yaml
+.env.local
+
+# 개발 중 생성된 테스트 파일
+scratch/
+playground/
