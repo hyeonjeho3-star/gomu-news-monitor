@@ -969,3 +969,305 @@ else:
 
 **최종 수정일**: 2024년 11월
 **버전**: 1.0.0
+
+---
+
+# 🔄 중복 기사 방지 기능
+
+## 작동 원리
+
+이 시스템은 **GitHub Actions Artifacts**를 사용하여 중복 이메일 발송을 방지합니다.
+
+### 실행 흐름
+
+```
+실행 1 (09:00 KST)
+├─ Artifact 다운로드 → 없음 (첫 실행)
+├─ 기사 5개 발견
+├─ 5개 이메일 발송 ✉️
+└─ DB 업로드 (5개 기록)
+
+실행 2 (12:00 KST)
+├─ Artifact 다운로드 → 복원 (5개)
+├─ 기사 7개 발견
+├─ 신규 2개만 이메일 발송 ✉️
+└─ DB 업로드 (7개 기록)
+
+실행 3 (15:00 KST)
+├─ Artifact 다운로드 → 복원 (7개)
+├─ 기사 7개 발견 (변동 없음)
+├─ 이메일 없음 ✅
+└─ DB 업로드 (7개 유지)
+```
+
+## Artifacts 확인 방법
+
+### GitHub에서 확인
+
+1. Repository → **Actions** 탭
+2. 원하는 실행 클릭
+3. 하단 **Artifacts** 섹션
+4. `articles-database` 다운로드 가능
+
+![Artifacts 섹션 예시]
+
+### 다운로드 후 확인
+
+```bash
+# 1. Artifacts 다운로드 (ZIP 파일)
+# GitHub Actions → Artifacts → articles-database → Download
+
+# 2. ZIP 압축 해제
+unzip articles-database.zip
+
+# 3. DB 내용 확인
+sqlite3 articles.db "SELECT * FROM articles ORDER BY created_at DESC LIMIT 10;"
+
+# 4. 통계 확인
+sqlite3 articles.db "SELECT COUNT(*) as total, 
+  COUNT(CASE WHEN notified = 1 THEN 1 END) as notified,
+  COUNT(CASE WHEN notified = 0 THEN 1 END) as pending
+FROM articles;"
+```
+
+## 데이터 보관 기간
+
+- **90일** 자동 보관
+- 90일 후 자동 삭제
+- 원하면 수동으로 다운로드 가능
+
+### 90일이 충분한 이유
+
+- 뉴스는 90일 지나면 중요도 낮음
+- 자동 초기화로 DB 깔끔하게 유지
+- 필요시 Actions에서 다운로드 가능
+- 용량 절약 (GitHub 무료 플랜: 500MB 제한)
+
+## 수동 초기화 방법
+
+모든 기사를 다시 알림받고 싶다면:
+
+### 방법 1: Artifact 삭제
+
+1. Actions → 최근 실행 클릭
+2. Artifacts → `articles-database` 우측 🗑️ 클릭
+3. 다음 실행 시 모든 기사를 새로 알림
+
+### 방법 2: 로컬에서 초기화
+
+```bash
+# 로컬 DB 삭제
+rm -rf data/articles.db
+
+# 다음 푸시 후 Actions 실행 시 새로 시작
+```
+
+## 로컬에서 테스트
+
+중복 방지 기능을 로컬에서 테스트하려면:
+
+```bash
+# 시뮬레이션 스크립트 실행
+python scripts/simulate_github_actions.py
+
+# 안내에 따라 main.py 실행
+python main.py --mode test
+
+# Enter 눌러서 계속
+# → 통계 및 비교 결과 확인
+```
+
+## 트러블슈팅
+
+### 문제: 중복 이메일 계속 수신
+
+**원인**: Artifact 복원 실패
+
+**해결**:
+1. Actions 로그 확인:
+   ```
+   Download previous database
+   → ⚠️ Artifact not found
+   ```
+2. 이전 실행이 성공했는지 확인
+3. Artifact가 90일 지났는지 확인
+4. Workflow 파일의 `continue-on-error: true` 확인
+
+**로그 예시 (정상)**:
+```
+✅ Previous database found
+📦 DB size: 8.0K
+📚 Total articles in DB: 6
+✉️  Notified articles: 6
+🆕 Pending notifications: 0
+```
+
+### 문제: DB 용량 증가
+
+**현재 상태 확인**:
+```yaml
+# Workflow 로그에서
+DB size: 2.3M
+```
+
+**대응**:
+- 1MB 이하: ✅ 정상
+- 1-10MB: ✅ 정상 (많은 기사)
+- 10MB 이상: ⚠️ 오래된 기사 정리 권장
+
+**정리 방법**:
+```bash
+# 1. Artifact 다운로드
+# 2. DB 정리 (30일 이전 기사 삭제)
+sqlite3 articles.db "DELETE FROM articles WHERE created_at < datetime('now', '-30 days');"
+sqlite3 articles.db "VACUUM;"
+
+# 3. 정리된 DB를 data/ 폴더에 복사
+# 4. Git 커밋 및 푸시
+# 5. 다음 Actions 실행 시 정리된 DB 사용
+```
+
+### 문제: Artifact 업로드 실패
+
+**로그 예시**:
+```
+❌ Error: Artifact upload failed
+```
+
+**원인**:
+1. DB 파일이 너무 큼 (>100MB)
+2. 네트워크 오류
+3. GitHub 스토리지 한도 초과
+
+**해결**:
+```yaml
+# Workflow에서 압축 레벨 확인
+compression-level: 9  # 최대 압축
+```
+
+## 통계 보기
+
+### Actions 로그에서
+
+각 실행의 로그에서 통계를 확인할 수 있습니다:
+
+```
+========================================
+📊 Final Database Statistics
+========================================
+📚 Total articles: 12
+✉️  Notified: 10
+🆕 Pending: 2
+💾 Database size: 16.0K
+========================================
+```
+
+### 로컬 시뮬레이션에서
+
+```bash
+python scripts/simulate_github_actions.py
+
+# 출력 예시:
+📊 Previous Database Statistics:
+   📚 Total articles: 5
+   ✉️  Notified: 5
+   🆕 Pending: 0
+
+# main.py 실행 후...
+
+📊 Final Database Statistics:
+   📚 Total articles: 7
+   ✉️  Notified: 7
+   🆕 Pending: 0
+
+🔍 Comparison: Before vs After
+📊 Before: 5 articles
+📊 After:  7 articles
+✅ New articles added: 2
+```
+
+## 고급 설정
+
+### 보관 기간 변경
+
+**Workflow 파일 수정**:
+```yaml
+- name: 🔼 Upload updated database
+  uses: actions/upload-artifact@v4
+  with:
+    name: articles-database
+    path: data/articles.db
+    retention-days: 30   # 30일로 단축
+    # retention-days: 180  # 180일로 연장 (권장하지 않음)
+```
+
+### 압축 레벨 조정
+
+```yaml
+compression-level: 9  # 최대 압축 (느림, 작은 파일)
+compression-level: 6  # 기본값 (균형)
+compression-level: 0  # 압축 없음 (빠름, 큰 파일)
+```
+
+### 여러 DB 버전 보관
+
+```yaml
+# 날짜별 백업
+name: articles-database-${{ github.run_number }}
+retention-days: 30
+```
+
+## 모니터링 대시보드
+
+Artifacts 현황을 한눈에 보려면:
+
+1. Repository → **Settings**
+2. 좌측 메뉴 → **Actions** → **General**
+3. 하단 **Artifact and log retention** 확인
+   - 현재 사용량
+   - 남은 용량
+   - 보관 정책
+
+## 베스트 프랙티스
+
+### ✅ 권장
+
+1. **90일 보관 유지**
+   - 충분한 기간
+   - 자동 정리로 관리 편함
+
+2. **최대 압축 사용**
+   - `compression-level: 9`
+   - 용량 절약
+
+3. **정기적인 확인**
+   - 월 1회 Artifacts 크기 확인
+   - 이상 증가 시 정리
+
+4. **백업**
+   - 중요한 시점의 DB는 수동 다운로드
+   - 로컬에 별도 보관
+
+### ❌ 비권장
+
+1. **과도한 보관 기간**
+   - 180일 이상: 용량 낭비
+   - 30일 미만: 너무 자주 초기화
+
+2. **압축 없이 저장**
+   - `compression-level: 0`: 용량 낭비
+
+3. **수동 관리**
+   - Artifacts는 자동으로 관리되도록
+   - 수동 다운로드/업로드 지양
+
+## 참고 자료
+
+- [GitHub Actions Artifacts 공식 문서](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts)
+- [SQLite 데이터베이스 최적화](https://www.sqlite.org/optoverview.html)
+- [GitHub Actions 무료 플랜 한도](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions)
+
+---
+
+**업데이트**: 2024년 11월 - 중복 방지 기능 추가
+**버전**: 1.1.0

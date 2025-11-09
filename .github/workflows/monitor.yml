@@ -53,7 +53,44 @@ jobs:
           fetch-depth: 1  # 최신 커밋만 가져오기 (속도 향상)
 
       # ========================================
-      # Step 2: Python 환경 설정
+      # Step 2: 이전 데이터베이스 다운로드 (있으면)
+      # ========================================
+      - name: 🔽 Download previous database
+        uses: actions/download-artifact@v4
+        with:
+          name: articles-database
+          path: data/
+        continue-on-error: true  # 첫 실행 시 없어도 계속 진행
+
+      # ========================================
+      # Step 3: 데이터베이스 상태 확인
+      # ========================================
+      - name: 📊 Check database status
+        run: |
+          if [ -f data/articles.db ]; then
+            echo "✅ Previous database found"
+            ls -lh data/articles.db
+            db_size=$(du -h data/articles.db | cut -f1)
+            echo "📦 DB size: $db_size"
+
+            # SQLite 설치 및 DB 내용 확인
+            sudo apt-get update -qq
+            sudo apt-get install -y sqlite3
+
+            article_count=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles;" 2>/dev/null || echo "0")
+            notified_count=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles WHERE notified = 1;" 2>/dev/null || echo "0")
+
+            echo "📚 Total articles in DB: $article_count"
+            echo "✉️  Notified articles: $notified_count"
+            echo "🆕 Pending notifications: $((article_count - notified_count))"
+          else
+            echo "ℹ️  No previous database found (first run or expired)"
+            mkdir -p data
+            echo "📁 Created data directory"
+          fi
+
+      # ========================================
+      # Step 4: Python 환경 설정
       # ========================================
       - name: 🐍 Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
@@ -62,7 +99,7 @@ jobs:
           cache: 'pip'  # pip 캐시 활성화 (2회차부터 빠른 설치)
 
       # ========================================
-      # Step 3: Chrome 브라우저 및 ChromeDriver 확인
+      # Step 5: Chrome 브라우저 및 ChromeDriver 확인
       # ========================================
       - name: 🌐 Setup Chrome and ChromeDriver
         run: |
@@ -81,7 +118,7 @@ jobs:
           echo "✅ Browser setup complete"
 
       # ========================================
-      # Step 4: Python 패키지 설치
+      # Step 6: Python 패키지 설치
       # ========================================
       - name: 📦 Install Python dependencies
         run: |
@@ -91,7 +128,7 @@ jobs:
           echo "✅ Dependencies installed"
 
       # ========================================
-      # Step 5: 환경 변수 파일 생성
+      # Step 7: 환경 변수 파일 생성
       # ========================================
       - name: 🔐 Create .env file from secrets
         run: |
@@ -126,7 +163,7 @@ jobs:
           echo "✅ All secrets are set"
 
       # ========================================
-      # Step 6: 디렉토리 생성
+      # Step 8: 디렉토리 생성
       # ========================================
       - name: 📁 Create required directories
         run: |
@@ -134,7 +171,7 @@ jobs:
           echo "✅ Directories created"
 
       # ========================================
-      # Step 7: 모니터링 실행
+      # Step 9: 모니터링 실행
       # ========================================
       - name: 🔍 Run monitoring
         id: monitor
@@ -161,7 +198,48 @@ jobs:
         timeout-minutes: 8
 
       # ========================================
-      # Step 8: 로그 업로드 (실패 시에만)
+      # Step 10: 업데이트된 데이터베이스 업로드
+      # ========================================
+      - name: 🔼 Upload updated database
+        uses: actions/upload-artifact@v4
+        if: always()  # 성공/실패 무관하게 항상 저장
+        with:
+          name: articles-database
+          path: data/articles.db
+          retention-days: 90  # 90일 보관
+          compression-level: 9  # 최대 압축
+          if-no-files-found: warn
+
+      # ========================================
+      # Step 11: 데이터베이스 통계 출력
+      # ========================================
+      - name: 📊 Show database statistics
+        if: always()
+        run: |
+          if [ -f data/articles.db ]; then
+            echo "=========================================="
+            echo "📊 Final Database Statistics"
+            echo "=========================================="
+
+            # SQLite가 이미 Step 3에서 설치됨
+            total=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles;" 2>/dev/null || echo "0")
+            notified=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles WHERE notified = 1;" 2>/dev/null || echo "0")
+            pending=$((total - notified))
+
+            echo "📚 Total articles: $total"
+            echo "✉️  Notified: $notified"
+            echo "🆕 Pending: $pending"
+
+            # DB 파일 크기
+            db_size=$(du -h data/articles.db | cut -f1)
+            echo "💾 Database size: $db_size"
+            echo "=========================================="
+          else
+            echo "ℹ️  No database file found"
+          fi
+
+      # ========================================
+      # Step 12: 로그 업로드 (실패 시에만)
       # ========================================
       - name: 📋 Upload logs on failure
         if: failure()
@@ -173,7 +251,7 @@ jobs:
           if-no-files-found: ignore
 
       # ========================================
-      # Step 9: 통계 출력
+      # Step 13: 통계 출력
       # ========================================
       - name: 📊 Show statistics
         if: always()
@@ -184,7 +262,7 @@ jobs:
           python main.py --stats --days 1 || echo "No statistics available yet"
 
       # ========================================
-      # Step 10: 실행 결과 요약
+      # Step 14: 실행 결과 요약
       # ========================================
       - name: 📝 Job Summary
         if: always()
