@@ -62,19 +62,23 @@ jobs:
           cache: 'pip'  # pip 캐시 활성화 (2회차부터 빠른 설치)
 
       # ========================================
-      # Step 3: Chrome 브라우저 설치
+      # Step 3: Chrome 브라우저 및 ChromeDriver 확인
       # ========================================
-      - name: 🌐 Install Google Chrome
+      - name: 🌐 Setup Chrome and ChromeDriver
         run: |
-          echo "📦 Installing Chrome..."
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
-          sudo apt-get update -qq
-          sudo apt-get install -y google-chrome-stable
+          echo "📦 Checking Chrome and ChromeDriver..."
 
-          # Chrome 버전 확인
-          chrome_version=$(google-chrome --version)
-          echo "✅ Installed: $chrome_version"
+          # Ubuntu-latest에 이미 Chrome과 ChromeDriver가 설치되어 있음
+          chrome_version=$(google-chrome --version || echo "Chrome not found")
+          chromedriver_version=$(chromedriver --version || echo "ChromeDriver not found")
+
+          echo "Chrome: $chrome_version"
+          echo "ChromeDriver: $chromedriver_version"
+
+          # ChromeDriver 경로 확인
+          which chromedriver || echo "ChromeDriver not in PATH"
+
+          echo "✅ Browser setup complete"
 
       # ========================================
       # Step 4: Python 패키지 설치

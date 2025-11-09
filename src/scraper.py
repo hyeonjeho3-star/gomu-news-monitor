@@ -13,6 +13,7 @@ import logging
 import time
 import re
 import hashlib
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from urllib.parse import urljoin
@@ -102,11 +103,18 @@ class NewsScraper:
             # Disable images for faster loading (optional)
             # chrome_options.add_argument('--blink-settings=imagesEnabled=false')
 
-            # Setup service
-            service = Service(ChromeDriverManager().install())
+            # Setup service - use system chromedriver in GitHub Actions
+            if os.getenv('GITHUB_ACTIONS') == 'true':
+                # GitHub Actions: Use system-installed chromedriver
+                logger.info("GitHub Actions detected - using system chromedriver")
+                # Don't specify service, let Selenium find chromedriver in PATH
+                driver = webdriver.Chrome(options=chrome_options)
+            else:
+                # Local environment: Use webdriver-manager
+                logger.info("Local environment - using webdriver-manager")
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
 
-            # Create driver
-            driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_page_load_timeout(self.config.request_timeout)
             driver.implicitly_wait(10)
 
