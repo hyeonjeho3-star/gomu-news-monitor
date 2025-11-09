@@ -230,6 +230,11 @@ class Notifier:
         for i, article in enumerate(articles, 1):
             lines.append(f"\n[기사 {i}]")
             lines.append(f"제목: {article['title']}")
+
+            # Add Korean translation if available
+            if article.get('title_ko'):
+                lines.append(f"번역: {article['title_ko']}")
+
             lines.append(f"키워드: {article['matched_keyword']}")
             lines.append(f"링크: {article['url']}")
 
@@ -386,8 +391,19 @@ class Notifier:
                     <div class="article-title">
                         {i}. <a href="{article['url']}" target="_blank">{article['title']}</a>
                     </div>
+            """)
+
+            # Add Korean translation if available
+            if article.get('title_ko'):
+                html_parts.append(f"""
+                    <div style="margin: 8px 0 15px 0; padding-left: 15px; border-left: 3px solid #4CAF50; color: #2c5f2d; font-size: 15px; line-height: 1.6; font-weight: 500;">
+                        → {article['title_ko']}
+                    </div>
+                """)
+
+            html_parts.append("""
                     <div>
-                        <span class="keyword-badge">🔑 {article['matched_keyword']}</span>
+                        <span class="keyword-badge">🔑 """ + article['matched_keyword'] + """</span>
             """)
 
             if article.get('is_urgent'):

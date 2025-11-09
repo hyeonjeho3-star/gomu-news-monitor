@@ -22,6 +22,9 @@ python-dateutil==2.8.2
 pytz==2023.3
 fake-useragent==1.4.0
 
+# Translation
+deep-translator==1.11.4  # Japanese to Korean translation for article titles
+
 # Logging
 colorlog==6.8.0
 

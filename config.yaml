@@ -137,6 +137,13 @@ features:
   collect_metrics: true
   metrics_file: "logs/metrics.json"
 
+# Translation
+translation:
+  enabled: true  # Enable Japanese to Korean translation
+  cache_enabled: true  # Cache translations to improve performance
+  fallback_on_error: true  # Continue without translation if it fails
+  rate_limit_delay: 0.5  # Delay between translation requests (seconds)
+
 # Security
 security:
   encrypt_passwords: false

@@ -86,6 +86,7 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     article_id TEXT UNIQUE NOT NULL,
                     title TEXT NOT NULL,
+                    title_ko TEXT,
                     url TEXT NOT NULL,
                     published_date DATETIME,
                     matched_keyword TEXT NOT NULL,
@@ -159,7 +160,7 @@ class Database:
         Args:
             article_data: Dictionary containing article information
                 Required keys: article_id, title, url, matched_keyword
-                Optional keys: published_date, full_content
+                Optional keys: published_date, full_content, title_ko
 
         Returns:
             bool: True if article was added, False if it already exists
@@ -168,6 +169,7 @@ class Database:
             >>> article = {
             ...     'article_id': 'article-123',
             ...     'title': 'New product release',
+            ...     'title_ko': '새로운 제품 출시',
             ...     'url': 'https://example.com/article-123',
             ...     'matched_keyword': 'バンドー化学',
             ...     'full_content': 'Article content here...'
@@ -184,12 +186,13 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO articles (
-                        article_id, title, url, published_date,
+                        article_id, title, title_ko, url, published_date,
                         matched_keyword, full_content, notified
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     article_data['article_id'],
                     article_data['title'],
+                    article_data.get('title_ko'),
                     article_data['url'],
                     article_data.get('published_date'),
                     article_data['matched_keyword'],
@@ -225,7 +228,7 @@ class Database:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             query = """
-                SELECT id, article_id, title, url, published_date,
+                SELECT id, article_id, title, title_ko, url, published_date,
                        matched_keyword, full_content, created_at
                 FROM articles
                 WHERE notified = FALSE
@@ -282,6 +285,41 @@ class Database:
                 WHERE id IN ({placeholders})
             """, article_ids)
             logger.info(f"Marked {len(article_ids)} articles as notified")
+
+    def update_article_translation(self, article_id: str, title_ko: str) -> bool:
+        """
+        Update article's Korean translation.
+
+        Args:
+            article_id: Article ID (not database ID)
+            title_ko: Korean translated title
+
+        Returns:
+            bool: True if successful, False otherwise
+
+        Example:
+            >>> db.update_article_translation('article-123', '반도화학 뉴스')
+            True
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE articles
+                    SET title_ko = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE article_id = ?
+                """, (title_ko, article_id))
+
+                if cursor.rowcount > 0:
+                    logger.debug(f"Updated translation for {article_id}: {title_ko[:30]}...")
+                    return True
+                else:
+                    logger.warning(f"No article found with ID: {article_id}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"Failed to update translation for {article_id}: {e}")
+            return False
 
     def log_monitoring_run(
         self,

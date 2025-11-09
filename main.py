@@ -135,6 +135,44 @@ class GomuNewsMonitor:
 
             stats['new_articles'] = len(new_articles)
 
+            # Translate new article titles to Korean
+            if new_articles and self.config.get('translation.enabled', True):
+                self.logger.info(f"Translating {len(new_articles)} article titles...")
+                try:
+                    from src.translator import get_translator
+                    translator = get_translator()
+
+                    translated_count = 0
+                    failed_count = 0
+
+                    for article in new_articles:
+                        try:
+                            title_ko = translator.translate(article['title'])
+                            if title_ko:
+                                article['title_ko'] = title_ko
+                                # Update database with translation
+                                self.database.update_article_translation(
+                                    article['article_id'],
+                                    title_ko
+                                )
+                                translated_count += 1
+                            else:
+                                article['title_ko'] = None
+                                failed_count += 1
+                                self.logger.warning(f"Translation failed for: {article['title'][:50]}...")
+                        except Exception as e:
+                            article['title_ko'] = None
+                            failed_count += 1
+                            self.logger.error(f"Translation error: {e}")
+
+                    self.logger.info(f"Translation complete: {translated_count} successful, {failed_count} failed")
+
+                except Exception as e:
+                    self.logger.error(f"Translation module error: {e}")
+                    # Continue without translations
+                    for article in new_articles:
+                        article['title_ko'] = None
+
             # Send notifications for new articles
             if new_articles:
                 self.logger.info(f"Sending notifications for {len(new_articles)} new articles...")
