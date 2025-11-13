@@ -53,14 +53,16 @@ jobs:
           fetch-depth: 1  # 최신 커밋만 가져오기 (속도 향상)
 
       # ========================================
-      # Step 2: 이전 데이터베이스 다운로드 (있으면)
+      # Step 2: 이전 데이터베이스 복원 (캐시에서)
       # ========================================
-      - name: 🔽 Download previous database
-        uses: actions/download-artifact@v4
+      - name: 🔽 Restore previous database from cache
+        id: cache-restore
+        uses: actions/cache/restore@v3
         with:
-          name: articles-database
-          path: data/
-        continue-on-error: true  # 첫 실행 시 없어도 계속 진행
+          path: data/articles.db
+          key: articles-db-${{ github.run_number }}
+          restore-keys: |
+            articles-db-
 
       # ========================================
       # Step 3: 데이터베이스 상태 확인
@@ -68,7 +70,7 @@ jobs:
       - name: 📊 Check database status
         run: |
           if [ -f data/articles.db ]; then
-            echo "✅ Previous database found"
+            echo "✅ Previous database restored from cache"
             ls -lh data/articles.db
             db_size=$(du -h data/articles.db | cut -f1)
             echo "📦 DB size: $db_size"
@@ -84,7 +86,7 @@ jobs:
             echo "✉️  Notified articles: $notified_count"
             echo "🆕 Pending notifications: $((article_count - notified_count))"
           else
-            echo "ℹ️  No previous database found (first run or expired)"
+            echo "ℹ️  No previous database found (first run or cache miss)"
             mkdir -p data
             echo "📁 Created data directory"
           fi
@@ -198,17 +200,15 @@ jobs:
         timeout-minutes: 8
 
       # ========================================
-      # Step 10: 업데이트된 데이터베이스 업로드
+      # Step 10: 업데이트된 데이터베이스 캐시 저장
       # ========================================
-      - name: 🔼 Upload updated database
-        uses: actions/upload-artifact@v4
+      - name: 🔼 Save updated database to cache
+        id: cache-save
+        uses: actions/cache/save@v3
         if: always()  # 성공/실패 무관하게 항상 저장
         with:
-          name: articles-database
           path: data/articles.db
-          retention-days: 90  # 90일 보관
-          compression-level: 9  # 최대 압축
-          if-no-files-found: warn
+          key: articles-db-${{ github.run_number }}
 
       # ========================================
       # Step 11: 데이터베이스 통계 출력
@@ -289,7 +289,7 @@ jobs:
 #
 # 1. 실행 주기 변경:
 #    schedule:
-#      - cron: '0 */3 * * *'   # 3시간마다 (현재 설정)
+#      - cron: '50 22 * * *'   # 매일 7:50 AM KST (현재 설정)
 #      - cron: '0 * * * *'     # 1시간마다
 #      - cron: '0 */6 * * *'   # 6시간마다
 #      - cron: '0 9,21 * * *'  # 매일 9시, 21시 (UTC)
@@ -307,5 +307,11 @@ jobs:
 #    UTC 12시 = 한국 오후 9시
 #
 #    Cron 도구: https://crontab.guru/
+#
+# 5. 캐시 관련:
+#    - GitHub Actions Cache는 7일간 미사용 시 자동 삭제됨
+#    - 캐시 한도: Public repo 10GB, Private repo 10GB
+#    - restore-keys를 통해 이전 실행의 DB를 자동으로 복원
+#    - 중복 메일 방지를 위해 캐시 사용 (artifacts 대신)
 #
 # =============================================================================
