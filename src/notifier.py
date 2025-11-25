@@ -225,6 +225,18 @@ class Notifier:
             lines.append("고무 업계 뉴스 모니터링 알림")
             lines.append("=" * 60)
 
+        # 로그인 정보 추가
+        lines.append("")
+        lines.append("┌" + "─" * 40 + "┐")
+        lines.append("│    🔐 고무호지신문 로그인 정보         │")
+        lines.append("│" + "─" * 40 + "│")
+        lines.append("│      ID : gomu1239                     │")
+        lines.append("│      PW : DRB@12345678                 │")
+        lines.append("│                                        │")
+        lines.append("│   🌐 https://gomuhouchi.com            │")
+        lines.append("└" + "─" * 40 + "┘")
+        lines.append("")
+
         lines.append(f"\n총 {len(articles)}건의 새로운 기사가 발견되었습니다.\n")
 
         for i, article in enumerate(articles, 1):
@@ -363,6 +375,59 @@ class Notifier:
                         display: inline-block;
                         margin: 10px 0;
                     }
+                    .credentials-box {
+                        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+                        border: 3px solid #ffd700;
+                        border-radius: 12px;
+                        padding: 20px 25px;
+                        margin: 20px 0;
+                        text-align: center;
+                        box-shadow: 0 4px 15px rgba(26, 35, 126, 0.3);
+                    }
+                    .credentials-title {
+                        color: #ffd700;
+                        font-size: 16px;
+                        font-weight: bold;
+                        margin-bottom: 15px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    }
+                    .credentials-content {
+                        background: rgba(255, 255, 255, 0.95);
+                        border-radius: 8px;
+                        padding: 15px 20px;
+                        display: inline-block;
+                    }
+                    .credential-item {
+                        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #1a237e;
+                        margin: 8px 0;
+                        letter-spacing: 0.5px;
+                    }
+                    .credential-label {
+                        color: #e53935;
+                        font-weight: bold;
+                        display: inline-block;
+                        min-width: 45px;
+                    }
+                    .credential-value {
+                        color: #1565c0;
+                        background: #e3f2fd;
+                        padding: 4px 10px;
+                        border-radius: 4px;
+                        margin-left: 8px;
+                    }
+                    .credentials-link {
+                        color: #ffd700;
+                        font-size: 13px;
+                        margin-top: 12px;
+                    }
+                    .credentials-link a {
+                        color: #ffd700;
+                        text-decoration: underline;
+                    }
                 </style>
             </head>
             <body>
@@ -375,6 +440,26 @@ class Notifier:
             html_parts.append('<div class="urgent-badge">⚠️ 긴급 알림</div>')
 
         html_parts.append('</div>')
+
+        # Credentials box (로그인 정보)
+        html_parts.append("""
+            <div class="credentials-box">
+                <div class="credentials-title">🔐 고무호지신문 로그인 정보</div>
+                <div class="credentials-content">
+                    <div class="credential-item">
+                        <span class="credential-label">ID :</span>
+                        <span class="credential-value">gomu1239</span>
+                    </div>
+                    <div class="credential-item">
+                        <span class="credential-label">PW :</span>
+                        <span class="credential-value">DRB@12345678</span>
+                    </div>
+                </div>
+                <div class="credentials-link">
+                    🌐 <a href="https://gomuhouchi.com" target="_blank">고무호지신문 바로가기</a>
+                </div>
+            </div>
+        """)
 
         # Summary section
         html_parts.append(f"""
