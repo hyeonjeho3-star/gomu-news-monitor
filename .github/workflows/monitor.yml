@@ -50,19 +50,16 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # 최신 커밋만 가져오기 (속도 향상)
+          fetch-depth: 0  # 전체 히스토리 (push를 위해 필요)
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # ========================================
-      # Step 2: 이전 데이터베이스 복원 (캐시에서)
+      # Step 2: Git 설정 (DB 커밋용)
       # ========================================
-      - name: 🔽 Restore previous database from cache
-        id: cache-restore
-        uses: actions/cache/restore@v3
-        with:
-          path: data/articles.db
-          key: articles-db-${{ github.run_number }}
-          restore-keys: |
-            articles-db-
+      - name: 🔧 Configure Git for database commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # ========================================
       # Step 3: 데이터베이스 상태 확인
@@ -200,15 +197,54 @@ jobs:
         timeout-minutes: 8
 
       # ========================================
-      # Step 10: 업데이트된 데이터베이스 캐시 저장
+      # Step 10: 업데이트된 데이터베이스 Git 커밋
       # ========================================
-      - name: 🔼 Save updated database to cache
-        id: cache-save
-        uses: actions/cache/save@v3
+      - name: 🔼 Commit updated database to repository
         if: always()  # 성공/실패 무관하게 항상 저장
-        with:
-          path: data/articles.db
-          key: articles-db-${{ github.run_number }}
+        run: |
+          if [ -f data/articles.db ]; then
+            echo "📦 Committing database changes..."
+
+            # 변경사항 확인
+            git add data/articles.db
+
+            if git diff --cached --quiet; then
+              echo "ℹ️  No changes to database, skipping commit"
+            else
+              # 통계 정보 수집
+              article_count=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles;" 2>/dev/null || echo "0")
+              new_count=$(sqlite3 data/articles.db "SELECT COUNT(*) FROM articles WHERE notified = 0;" 2>/dev/null || echo "0")
+
+              # 커밋 메시지 생성
+              git commit -m "🔄 Update articles database [skip ci]
+
+              Run #${{ github.run_number }} | Articles: ${article_count} | Pending: ${new_count}
+              Triggered by: ${{ github.event_name }}"
+
+              # Push with retry
+              max_retries=4
+              retry_count=0
+              while [ $retry_count -lt $max_retries ]; do
+                if git push origin HEAD; then
+                  echo "✅ Database committed and pushed successfully"
+                  break
+                else
+                  retry_count=$((retry_count + 1))
+                  if [ $retry_count -lt $max_retries ]; then
+                    wait_time=$((2 ** retry_count))
+                    echo "⚠️  Push failed, retrying in ${wait_time}s... (attempt $retry_count/$max_retries)"
+                    sleep $wait_time
+                    git pull --rebase origin HEAD || true
+                  else
+                    echo "❌ Push failed after $max_retries attempts"
+                    exit 1
+                  fi
+                fi
+              done
+            fi
+          else
+            echo "⚠️  No database file found to commit"
+          fi
 
       # ========================================
       # Step 11: 데이터베이스 통계 출력
@@ -308,10 +344,10 @@ jobs:
 #
 #    Cron 도구: https://crontab.guru/
 #
-# 5. 캐시 관련:
-#    - GitHub Actions Cache는 7일간 미사용 시 자동 삭제됨
-#    - 캐시 한도: Public repo 10GB, Private repo 10GB
-#    - restore-keys를 통해 이전 실행의 DB를 자동으로 복원
-#    - 중복 메일 방지를 위해 캐시 사용 (artifacts 대신)
+# 5. 데이터베이스 저장 방식:
+#    - Git 저장소에 직접 커밋하여 영구 보존
+#    - 캐시 만료(7일) 및 브랜치 스코프 문제 없음
+#    - [skip ci] 태그로 무한 루프 방지
+#    - 중복 메일 방지를 위해 이전 기사 이력 유지
 #
 # =============================================================================
