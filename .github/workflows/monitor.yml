@@ -140,7 +140,7 @@ jobs:
           # Email Notification
           EMAIL_FROM=${{ secrets.EMAIL_FROM }}
           EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
-          EMAIL_TO=${{ secrets.EMAIL_TO }}
+          EMAIL_TO=hyeon.jae.ho@drbworld.com
 
           # SMTP Configuration
           SMTP_SERVER=${{ secrets.SMTP_SERVER }}
