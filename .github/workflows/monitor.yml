@@ -40,6 +40,10 @@ jobs:
     name: Monitor Gomu News
     runs-on: ubuntu-latest
 
+    # GITHUB_TOKEN 권한 설정 (DB 커밋/푸시용)
+    permissions:
+      contents: write
+
     # 타임아웃 설정 (10분 초과 시 자동 중단)
     timeout-minutes: 10
 
