@@ -376,20 +376,18 @@ class Notifier:
                         margin: 10px 0;
                     }
                     .credentials-box {
-                        background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+                        background-color: #1a237e;
                         border: 3px solid #ffd700;
                         border-radius: 12px;
                         padding: 20px 25px;
                         margin: 20px 0;
                         text-align: center;
-                        box-shadow: 0 4px 15px rgba(26, 35, 126, 0.3);
                     }
                     .credentials-title {
                         color: #ffd700;
                         font-size: 16px;
                         font-weight: bold;
                         margin-bottom: 15px;
-                        text-transform: uppercase;
                         letter-spacing: 1px;
                     }
                     .credentials-content {
@@ -420,12 +418,12 @@ class Notifier:
                         margin-left: 8px;
                     }
                     .credentials-link {
-                        color: #ffd700;
+                        color: #ffffff;
                         font-size: 13px;
                         margin-top: 12px;
                     }
                     .credentials-link a {
-                        color: #ffd700;
+                        color: #90caf9;
                         text-decoration: underline;
                     }
                 </style>
@@ -441,22 +439,22 @@ class Notifier:
 
         html_parts.append('</div>')
 
-        # Credentials box (로그인 정보)
+        # Credentials box (로그인 정보) - 인라인 스타일 사용 (이메일 클라이언트 호환성)
         html_parts.append("""
-            <div class="credentials-box">
-                <div class="credentials-title">🔐 고무호지신문 로그인 정보</div>
-                <div class="credentials-content">
-                    <div class="credential-item">
-                        <span class="credential-label">ID :</span>
-                        <span class="credential-value">gomu1239</span>
+            <div class="credentials-box" style="background-color: #1a237e; border: 3px solid #ffd700; border-radius: 12px; padding: 20px 25px; margin: 20px 0; text-align: center;">
+                <div class="credentials-title" style="color: #ffd700; font-size: 16px; font-weight: bold; margin-bottom: 15px;">🔐 고무호지신문 로그인 정보</div>
+                <div class="credentials-content" style="background-color: #ffffff; border-radius: 8px; padding: 15px 20px; display: inline-block;">
+                    <div class="credential-item" style="font-family: Consolas, Monaco, monospace; font-size: 18px; font-weight: bold; color: #1a237e; margin: 8px 0;">
+                        <span class="credential-label" style="color: #333333; font-weight: bold;">ID :</span>
+                        <span class="credential-value" style="color: #1565c0; background: #e3f2fd; padding: 4px 10px; border-radius: 4px; margin-left: 8px;">gomu1239</span>
                     </div>
-                    <div class="credential-item">
-                        <span class="credential-label">PW :</span>
-                        <span class="credential-value">DRB@12345678</span>
+                    <div class="credential-item" style="font-family: Consolas, Monaco, monospace; font-size: 18px; font-weight: bold; color: #1a237e; margin: 8px 0;">
+                        <span class="credential-label" style="color: #333333; font-weight: bold;">PW :</span>
+                        <span class="credential-value" style="color: #1565c0; background: #e3f2fd; padding: 4px 10px; border-radius: 4px; margin-left: 8px;">DRB@12345678</span>
                     </div>
                 </div>
-                <div class="credentials-link">
-                    🌐 <a href="https://gomuhouchi.com" target="_blank">고무호지신문 바로가기</a>
+                <div class="credentials-link" style="color: #ffffff; font-size: 13px; margin-top: 12px;">
+                    🌐 <a href="https://gomuhouchi.com" target="_blank" style="color: #90caf9; text-decoration: underline;">고무호지신문 바로가기</a>
                 </div>
             </div>
         """)
