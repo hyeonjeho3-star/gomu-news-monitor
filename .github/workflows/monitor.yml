@@ -213,6 +213,10 @@ EOF
           if [ -f data/articles.db ]; then
             echo "📦 Committing database changes..."
 
+            # 현재 브랜치 확인
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            echo "📌 Current branch: $CURRENT_BRANCH"
+
             # 변경사항 확인
             git add data/articles.db
 
@@ -226,14 +230,14 @@ EOF
               # 커밋 메시지 생성
               git commit -m "🔄 Update articles database [skip ci]
 
-              Run #${{ github.run_number }} | Articles: ${article_count} | Pending: ${new_count}
-              Triggered by: ${{ github.event_name }}"
+Run #${{ github.run_number }} | Articles: ${article_count} | Pending: ${new_count}
+Triggered by: ${{ github.event_name }}"
 
-              # Push with retry
+              # Push with retry (binary 파일 충돌 처리 포함)
               max_retries=4
               retry_count=0
               while [ $retry_count -lt $max_retries ]; do
-                if git push origin HEAD; then
+                if git push origin $CURRENT_BRANCH; then
                   echo "✅ Database committed and pushed successfully"
                   break
                 else
@@ -242,10 +246,24 @@ EOF
                     wait_time=$((2 ** retry_count))
                     echo "⚠️  Push failed, retrying in ${wait_time}s... (attempt $retry_count/$max_retries)"
                     sleep $wait_time
-                    git pull --rebase origin HEAD || true
+
+                    # 충돌 해결: remote 변경사항 가져오고 로컬 DB 유지
+                    git fetch origin $CURRENT_BRANCH
+                    git reset --soft origin/$CURRENT_BRANCH
+                    git checkout --ours data/articles.db 2>/dev/null || true
+                    git add data/articles.db
+
+                    # 다시 커밋
+                    if ! git diff --cached --quiet; then
+                      git commit -m "🔄 Update articles database [skip ci]
+
+Run #${{ github.run_number }} | Articles: ${article_count} | Pending: ${new_count}
+Triggered by: ${{ github.event_name }}"
+                    fi
                   else
                     echo "❌ Push failed after $max_retries attempts"
-                    exit 1
+                    echo "⚠️  Database changes will be lost but monitoring completed"
+                    exit 0  # Don't fail the workflow for DB push issues
                   fi
                 fi
               done
