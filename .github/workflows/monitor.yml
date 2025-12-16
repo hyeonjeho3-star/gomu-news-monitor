@@ -137,27 +137,31 @@ jobs:
         run: |
           echo "🔐 Creating .env file..."
           cat << EOF > .env
-          # Site Login
-          LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
-          LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
+# Site Login
+LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
+LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
 
-          # Email Notification
-          EMAIL_FROM=${{ secrets.EMAIL_FROM }}
-          EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
-          EMAIL_TO=hyeon.jae.ho@drbworld.com
+# Email Notification
+EMAIL_FROM=${{ secrets.EMAIL_FROM }}
+EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+EMAIL_TO=hyeon.jae.ho@drbworld.com
 
-          # SMTP Configuration
-          SMTP_SERVER=${{ secrets.SMTP_SERVER }}
-          SMTP_PORT=${{ secrets.SMTP_PORT }}
+# SMTP Configuration
+SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+SMTP_PORT=${{ secrets.SMTP_PORT }}
 
-          # GitHub Actions Environment
-          GITHUB_ACTIONS=true
-          EOF
+# GitHub Actions Environment
+GITHUB_ACTIONS=true
+EOF
 
           echo "✅ .env file created"
 
+          # 디버그: .env 파일 내용 확인 (비밀번호 제외)
+          echo "📋 .env file contents (sanitized):"
+          grep -v "PASSWORD" .env || true
+
           # 빈 값 검증 (보안)
-          if grep -q "=$" .env; then
+          if grep -qE "^[A-Z_]+=\s*$" .env; then
             echo "❌ Error: Some secrets are empty!"
             echo "Please check GitHub Secrets settings"
             exit 1
